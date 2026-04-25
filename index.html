@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>User Panel</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+
+<style>
+body{font-family:sans-serif;margin:0;background:#f4f7fb;}
+.nav{background:#fff;padding:15px;display:flex;justify-content:space-between;}
+.btn{background:#1e88e5;color:#fff;padding:10px;border:none;border-radius:5px;}
+.card{background:#fff;padding:15px;margin:15px;border-radius:10px;}
+table{width:100%;}
+td,th{padding:10px;border-bottom:1px solid #ddd;}
+</style>
+
+</head>
+<body>
+
+<div class="nav">
+<h3>SMM USER</h3>
+<button onclick="logout()">Logout</button>
+</div>
+
+<div class="card">
+<h3>Place Order</h3>
+
+<select id="service">
+<option value="1">Instagram Followers</option>
+<option value="2">YouTube Views</option>
+</select>
+
+<input id="link" placeholder="Link"><br><br>
+<input id="quantity" placeholder="Quantity"><br><br>
+
+<button class="btn" onclick="order()">Submit</button>
+</div>
+
+<div class="card">
+<h3>Your Orders</h3>
+<table id="orders"></table>
+</div>
+
+<script>
+const firebaseConfig = {
+apiKey:"AIzaSy...",
+authDomain:"telebot-earning.firebaseapp.com",
+projectId:"telebot-earning"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+const auth=firebase.auth();
+
+const API_URL="https://ajitsmm2.v0dev.in/api/v2";
+const API_KEY="PUT_YOUR_KEY";
+
+let user;
+
+// AUTH CHECK
+auth.onAuthStateChanged(async u=>{
+if(!u){location.href="/p/login.html";return;}
+user=u;
+
+const doc=await db.collection("users").doc(u.uid).get();
+if(doc.data().role==="admin"){
+location.href="/p/admin.html";
+}
+
+loadOrders();
+});
+
+// PLACE ORDER
+async function order(){
+
+let service=document.getElementById("service").value;
+let link=document.getElementById("link").value;
+let qty=document.getElementById("quantity").value;
+
+// SEND API
+let res=await fetch(API_URL,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+key:API_KEY,
+action:"add",
+service:service,
+link:link,
+quantity:qty
+})
+});
+
+let data=await res.json();
+
+await db.collection("orders").add({
+userId:user.uid,
+service,link,qty,
+apiId:data.order,
+status:"processing",
+createdAt:new Date()
+});
+
+alert("Order Sent 🚀");
+}
+
+// LOAD USER ORDERS
+function loadOrders(){
+db.collection("orders")
+.where("userId","==",user.uid)
+.onSnapshot(snap=>{
+let html="<tr><th>ID</th><th>Status</th></tr>";
+snap.forEach(doc=>{
+let d=doc.data();
+html+=`<tr><td>${d.apiId}</td><td>${d.status}</td></tr>`;
+});
+document.getElementById("orders").innerHTML=html;
+});
+}
+
+// LOGOUT
+function logout(){auth.signOut();}
+</script>
+
+</body>
+</html>
